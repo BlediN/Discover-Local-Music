@@ -13,14 +13,15 @@ async function loadEventDetail() {
     }
 
     try {
-        const response = await fetch(`/api/events/${eventId}`);
+        const response = await fetch('data/events.json');
+        const eventsData = await response.json();
+        const event = eventsData[eventId];
         
-        if (!response.ok) {
+        if (!event) {
             displayNotFound();
             return;
         }
 
-        const event = await response.json();
         displayEventDetail(event);
     } catch (error) {
         console.error('Error loading event:', error);
@@ -29,9 +30,16 @@ async function loadEventDetail() {
 }
 
 function extractEventIdFromUrl() {
+    // Support both hash-based routing (#event-id) and path-based (for local server)
+    const hash = window.location.hash.substring(1); // Remove #
+    if (hash) {
+        return hash;
+    }
+    
     const path = window.location.pathname;
-    // Remove leading slash and return the event ID
-    return path.substring(1);
+    const pathPart = path.substring(path.lastIndexOf('/') + 1);
+    // Remove .html extension if present
+    return pathPart.replace('.html', '');
 }
 
 function displayEventDetail(event) {

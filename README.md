@@ -68,19 +68,86 @@ The following **optional** features are implemented:
 3. **Access the Application:**
    Open your browser and navigate to `http://localhost:3000`
 
+## GitHub Pages Deployment
+
+This app uses a **separate `gh-pages` branch** for GitHub Pages deployment, keeping your `main` branch with the Express server version untouched.
+
+### Setup Deployment Branch
+
+1. **Create the gh-pages branch:**
+   ```bash
+   # Create and switch to gh-pages branch
+   git checkout -b gh-pages
+   
+   # Push the branch to GitHub
+   git push -u origin gh-pages
+   ```
+
+2. **Enable GitHub Pages** in your repository settings:
+   - Go to Settings → Pages
+   - Under "Build and deployment":
+     - Source: Select "GitHub Actions"
+
+3. **GitHub Actions will automatically deploy** whenever you push to `gh-pages`:
+   - Deploys the `public/` directory to GitHub Pages
+   - Your site will be available at: `https://yourusername.github.io/Discover-Local-Music/`
+
+### Workflow
+
+- **Main branch**: Keep your Express.js development version
+- **gh-pages branch**: Static version for GitHub Pages
+
+When you want to deploy updates:
+```bash
+# Make changes and commit
+git add .
+git commit -m "Update site content"
+
+# Push to gh-pages branch to trigger deployment
+git push origin gh-pages
+
+# Switch back to main if needed
+git checkout main
+```
+
+### Manual Setup (Alternative)
+
+If you prefer manual deployment without GitHub Actions:
+
+1. Go to Settings → Pages
+2. Source: Deploy from a branch
+3. Branch: Select `gh-pages` and `/public` folder
+4. Save
+
+### Live Demo
+
+Once deployed, your app will be accessible at:
+```
+https://BlediN.github.io/Discover-Local-Music/
+```
+
+**Note:** The app now uses static JSON data and hash-based routing for event details, making it fully compatible with GitHub Pages static hosting.
+
 ## Project Structure
 
 ```
 Discover-Local-Music/
-├── server.js                 # Express server with routing logic
+├── server.js                 # Express server with routing logic (optional - for local dev)
 ├── package.json              # Project dependencies
-├── public/
+├── .github/
+│   └── workflows/
+│       └── deploy.yml        # GitHub Actions deployment workflow
+├── public/                   # Static files served by GitHub Pages
 │   ├── index.html            # Home page with event listings
 │   ├── event.html            # Event detail page template
 │   ├── 404.html              # 404 error page
 │   ├── app.js                # Home page JavaScript
 │   ├── event-detail.js       # Event detail page JavaScript
-│   └── styles.css            # Custom styles with Picocss
+│   ├── styles.css            # Custom styles with Picocss
+│   ├── data/
+│   │   └── events.json       # Event data (static JSON)
+│   ├── pico-main/            # Local Picocss framework
+│   └── .nojekyll             # Tells GitHub Pages to serve all files
 ├── .gitignore
 └── README.md
 ```
@@ -126,10 +193,12 @@ Discover-Local-Music/
 ## Technologies Used
 
 - **Frontend**: HTML5, CSS3, Vanilla JavaScript
-- **Backend**: Node.js, Express.js
+- **Backend** (Optional): Node.js, Express.js (for local development)
+- **Data**: Static JSON file
 - **Styling**: Picocss Framework + Custom CSS
 - **Images**: Unsplash API
-- **Architecture**: Server-side routing with client-side event loading
+- **Deployment**: GitHub Pages with static hosting
+- **Architecture**: Client-side routing with hash-based navigation
 
 ## Browser Support
 

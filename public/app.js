@@ -10,8 +10,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function loadEvents() {
     try {
-        const response = await fetch('/api/events');
-        allEvents = await response.json();
+        const response = await fetch('data/events.json');
+        const eventsData = await response.json();
+        allEvents = Object.values(eventsData);
         displayEvents(allEvents);
     } catch (error) {
         console.error('Error loading events:', error);
@@ -33,7 +34,7 @@ function displayEvents(events) {
     }
 
     container.innerHTML = events.map(event => `
-        <a href="/${event.id}" class="event-card">
+        <a href="event.html#${event.id}" class="event-card">
             <img src="${event.image}" alt="${event.name}" class="event-image">
             <div class="event-content">
                 <span class="event-genre">${event.genre}</span>
