@@ -72,52 +72,47 @@ The following **optional** features are implemented:
 
 This app uses a **separate `gh-pages` branch** for GitHub Pages deployment, keeping your `main` branch with the Express server version untouched.
 
+**Note:** On the `gh-pages` branch, all website files are in the root directory (not in a `public/` folder), and server-related files (server.js, package.json, node_modules) are removed.
+
 ### Setup Deployment Branch
 
-1. **Create the gh-pages branch:**
-   ```bash
-   # Create and switch to gh-pages branch
-   git checkout -b gh-pages
-   
-   # Push the branch to GitHub
-   git push -u origin gh-pages
-   ```
+The `gh-pages` branch has already been created and configured. When you push to it, GitHub Actions automatically deploys your site.
 
-2. **Enable GitHub Pages** in your repository settings:
-   - Go to Settings → Pages
-   - Under "Build and deployment":
-     - Source: Select "GitHub Actions"
+### Enable GitHub Pages (One-time setup)
 
-3. **GitHub Actions will automatically deploy** whenever you push to `gh-pages`:
-   - Deploys the `public/` directory to GitHub Pages
-   - Your site will be available at: `https://yourusername.github.io/Discover-Local-Music/`
+1. Go to your repository on GitHub → Settings → Pages
+2. Under "Build and deployment":
+   - Source: Select **"GitHub Actions"**
+3. Done! The site will deploy automatically on push
+
+### Your Live Site
+
+Once deployed, your site will be available at:
+```
+https://BlediN.github.io/Discover-Local-Music/
+```
 
 ### Workflow
 
-- **Main branch**: Keep your Express.js development version
-- **gh-pages branch**: Static version for GitHub Pages
+- **main branch**: Express.js development version with server
+- **gh-pages branch**: Static-only version for GitHub Pages (files in root)
 
 When you want to deploy updates:
 ```bash
-# Make changes and commit
+# Switch to gh-pages branch
+git checkout gh-pages
+
+# Make changes to HTML, CSS, or JS files
+# (Files are in the root: index.html, styles.css, etc.)
+
+# Commit and push
 git add .
 git commit -m "Update site content"
-
-# Push to gh-pages branch to trigger deployment
 git push origin gh-pages
 
 # Switch back to main if needed
 git checkout main
 ```
-
-### Manual Setup (Alternative)
-
-If you prefer manual deployment without GitHub Actions:
-
-1. Go to Settings → Pages
-2. Source: Deploy from a branch
-3. Branch: Select `gh-pages` and `/public` folder
-4. Save
 
 ### Live Demo
 
@@ -130,14 +125,17 @@ https://BlediN.github.io/Discover-Local-Music/
 
 ## Project Structure
 
+### Main Branch (Development with Express)
 ```
 Discover-Local-Music/
-├── server.js                 # Express server with routing logic (optional - for local dev)
+├── server.js                 # Express server with routing logic
 ├── package.json              # Project dependencies
+├── package-lock.json
+├── node_modules/             # Dependencies
 ├── .github/
 │   └── workflows/
 │       └── deploy.yml        # GitHub Actions deployment workflow
-├── public/                   # Static files served by GitHub Pages
+├── public/                   # Static files served by Express
 │   ├── index.html            # Home page with event listings
 │   ├── event.html            # Event detail page template
 │   ├── 404.html              # 404 error page
@@ -148,6 +146,26 @@ Discover-Local-Music/
 │   │   └── events.json       # Event data (static JSON)
 │   ├── pico-main/            # Local Picocss framework
 │   └── .nojekyll             # Tells GitHub Pages to serve all files
+├── .gitignore
+└── README.md
+```
+
+### gh-pages Branch (Static Deployment)
+```
+Discover-Local-Music/
+├── .github/
+│   └── workflows/
+│       └── deploy.yml        # GitHub Actions deployment workflow
+├── index.html                # Home page with event listings
+├── event.html                # Event detail page template
+├── 404.html                  # 404 error page
+├── app.js                    # Home page JavaScript
+├── event-detail.js           # Event detail page JavaScript
+├── styles.css                # Custom styles with Picocss
+├── data/
+│   └── events.json           # Event data (static JSON)
+├── pico-main/                # Local Picocss framework
+├── .nojekyll                 # Tells GitHub Pages to serve all files
 ├── .gitignore
 └── README.md
 ```
