@@ -1,18 +1,31 @@
 // Discover Local Music - Main App
 
-let allEvents = [];
-
 // Fetch events from API on page load
 document.addEventListener('DOMContentLoaded', () => {
-    loadEvents();
     setupFilters();
+    loadEvents();
 });
 
 async function loadEvents() {
+    const genre = document.getElementById('genre-filter').value;
+    const price = document.getElementById('price-filter').value;
+    const venue = document.getElementById('venue-search').value.trim();
+
+    const query = new URLSearchParams();
+    if (genre) query.set('genre', genre);
+    if (price) query.set('price', price);
+    if (venue) query.set('venue', venue);
+
+    const url = query.toString() ? `/api/events?${query.toString()}` : '/api/events';
+
     try {
-        const response = await fetch('/api/events');
-        allEvents = await response.json();
-        displayEvents(allEvents);
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error('Failed to fetch events');
+        }
+
+        const events = await response.json();
+        displayEvents(events);
     } catch (error) {
         console.error('Error loading events:', error);
         displayError('Failed to load events');
@@ -55,41 +68,11 @@ function displayEvents(events) {
 function setupFilters() {
     const genreFilter = document.getElementById('genre-filter');
     const priceFilter = document.getElementById('price-filter');
+    const venueSearch = document.getElementById('venue-search');
 
-    genreFilter.addEventListener('change', applyFilters);
-    priceFilter.addEventListener('change', applyFilters);
-}
-
-function applyFilters() {
-    const genreFilter = document.getElementById('genre-filter').value;
-    const priceFilter = document.getElementById('price-filter').value;
-
-    let filtered = allEvents;
-
-    // Filter by genre
-    if (genreFilter) {
-        filtered = filtered.filter(event => event.genre === genreFilter);
-    }
-
-    // Filter by price
-    if (priceFilter) {
-        switch (priceFilter) {
-            case '0':
-                filtered = filtered.filter(event => event.ticketPrice === 0);
-                break;
-            case '1-40':
-                filtered = filtered.filter(event => event.ticketPrice > 0 && event.ticketPrice <= 40);
-                break;
-            case '40-50':
-                filtered = filtered.filter(event => event.ticketPrice > 40 && event.ticketPrice <= 50);
-                break;
-            case '50+':
-                filtered = filtered.filter(event => event.ticketPrice > 50);
-                break;
-        }
-    }
-
-    displayEvents(filtered);
+    genreFilter.addEventListener('change', loadEvents);
+    priceFilter.addEventListener('change', loadEvents);
+    venueSearch.addEventListener('input', loadEvents);
 }
 
 function formatDate(dateString) {

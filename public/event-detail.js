@@ -88,7 +88,7 @@ function displayEventDetail(event) {
 
 function displayNotFound() {
     // The 404 page is served by Express, but if we need to handle it here
-    window.location.href = '/not-found';
+    window.location.href = '/404.html';
 }
 
 function formatDate(dateString) {

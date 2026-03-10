@@ -1,113 +1,155 @@
+require('dotenv').config();
+
+const fs = require('fs/promises');
 const express = require('express');
 const path = require('path');
+const { Pool } = require('pg');
+
 const app = express();
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+});
+
+async function initializeDatabase() {
+  const schemaPath = path.join(__dirname, 'db', 'schema.sql');
+  const schemaSql = await fs.readFile(schemaPath, 'utf-8');
+  await pool.query(schemaSql);
+  console.log('Database schema initialized.');
+}
+
+function mapEventRow(row) {
+  return {
+    id: row.id,
+    name: row.name,
+    artists: row.artists,
+    date: row.event_date,
+    time: row.event_time,
+    venue: row.venue,
+    genre: row.genre,
+    ticketPrice: Number(row.ticket_price),
+    description: row.description,
+    image: row.image
+  };
+}
+
+function buildPriceFilter(priceFilter, values) {
+  if (!priceFilter) {
+    return '';
+  }
+
+  if (priceFilter === '0') {
+    return 'ticket_price = 0';
+  }
+
+  if (priceFilter === '1-40') {
+    return 'ticket_price > 0 AND ticket_price <= 40';
+  }
+
+  if (priceFilter === '40-50') {
+    return 'ticket_price > 40 AND ticket_price <= 50';
+  }
+
+  if (priceFilter === '50+') {
+    return 'ticket_price > 50';
+  }
+
+  if (priceFilter.includes('-')) {
+    const [minRaw, maxRaw] = priceFilter.split('-');
+    const min = Number(minRaw);
+    const max = Number(maxRaw);
+
+    if (!Number.isNaN(min) && !Number.isNaN(max)) {
+      const minIndex = values.push(min);
+      const maxIndex = values.push(max);
+      return `ticket_price BETWEEN $${minIndex} AND $${maxIndex}`;
+    }
+  }
+
+  return '';
+}
 
 // Serve static files from public directory
 app.use(express.static(path.join(__dirname, 'public')));
-
-// Sample event data
-const events = {
-  'indie-sunset-fest': {
-    id: 'indie-sunset-fest',
-    name: 'Indie Sunset Festival',
-    artists: ['The Midnight Hour', 'Echo Valley', 'Neon Dreams'],
-    date: '2026-03-15',
-    time: '18:00',
-    venue: 'Central Park Amphitheater',
-    genre: 'Indie',
-    ticketPrice: 35,
-    description: 'Join us for an amazing evening of indie music with some of the best local artists.',
-    image: 'https://images.unsplash.com/photo-1516575334481-f410b4b38f16?w=500&h=300&fit=crop'
-  },
-  'hip-hop-night-live': {
-    id: 'hip-hop-night-live',
-    name: 'Hip-Hop Night Live',
-    artists: ['DJ Fresh Beats', 'Lyrical Elite', 'Street Vibes'],
-    date: '2026-03-18',
-    time: '20:00',
-    venue: 'Downtown Music Club',
-    genre: 'Hip-Hop',
-    ticketPrice: 45,
-    description: 'Experience the hottest hip-hop acts performing live. Great atmosphere and amazing beats.',
-    image: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=500&h=300&fit=crop'
-  },
-  'edm-electric-night': {
-    id: 'edm-electric-night',
-    name: 'Electric Night EDM Festival',
-    artists: ['DJ Pulse', 'Neon Nights Collective', 'Bass Infinity'],
-    date: '2026-03-22',
-    time: '21:00',
-    venue: 'Riverside Event Space',
-    genre: 'EDM',
-    ticketPrice: 50,
-    description: 'High-energy electronic dance music featuring world-class DJs.',
-    image: 'https://images.unsplash.com/photo-1574375927938-d5a98e8ffe85?w=500&h=300&fit=crop'
-  },
-  'acoustic-coffee-open-mic': {
-    id: 'acoustic-coffee-open-mic',
-    name: 'Acoustic Coffee Open Mic',
-    artists: ['Various Local Artists'],
-    date: '2026-03-20',
-    time: '19:00',
-    venue: 'The Coffee Roastery',
-    genre: 'Acoustic',
-    ticketPrice: 0,
-    description: 'An intimate open mic night featuring local acoustic musicians.',
-    image: 'https://images.unsplash.com/photo-1511379938547-c1f69b13d835?w=500&h=300&fit=crop'
-  },
-  'blues-legend-night': {
-    id: 'blues-legend-night',
-    name: 'Blues Legend Tribute Night',
-    artists: ['The Delta Blues Band', 'Soulful Strings', 'B.B. Echo'],
-    date: '2026-03-25',
-    time: '20:30',
-    venue: 'Vintage Theater',
-    genre: 'Blues',
-    ticketPrice: 40,
-    description: 'Celebrate the greatest blues legends with live performances and tributes.',
-    image: 'https://images.unsplash.com/photo-1524230572899-a752b3835840?w=500&h=300&fit=crop'
-  },
-  'rock-explosion-concert': {
-    id: 'rock-explosion-concert',
-    name: 'Rock Explosion Concert',
-    artists: ['Storm Riders', 'Electric Thunder', 'Molten Core'],
-    date: '2026-03-28',
-    time: '19:30',
-    venue: 'The Grand Arena',
-    genre: 'Rock',
-    ticketPrice: 55,
-    description: 'The ultimate rock concert experience with powerful performances and amazing production.',
-    image: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=500&h=300&fit=crop'
-  }
-};
 
 // Home page
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Event detail page
-app.get('/:eventId', (req, res) => {
-  const eventId = req.params.eventId;
-  
-  if (events[eventId]) {
-    res.sendFile(path.join(__dirname, 'public', 'event.html'));
-  } else {
-    res.status(404).sendFile(path.join(__dirname, 'public', '404.html'));
+// API endpoint for events data
+app.get('/api/events', async (req, res) => {
+  try {
+    const values = [];
+    const filters = [];
+
+    if (req.query.genre) {
+      const index = values.push(req.query.genre);
+      filters.push(`genre = $${index}`);
+    }
+
+    if (req.query.venue) {
+      const index = values.push(`%${req.query.venue}%`);
+      filters.push(`venue ILIKE $${index}`);
+    }
+
+    const priceFilter = buildPriceFilter(req.query.price, values);
+    if (priceFilter) {
+      filters.push(priceFilter);
+    }
+
+    const whereClause = filters.length > 0 ? `WHERE ${filters.join(' AND ')}` : '';
+    const query = `
+      SELECT id, name, artists, event_date, event_time, venue, genre, ticket_price, description, image
+      FROM events
+      ${whereClause}
+      ORDER BY event_date ASC, event_time ASC;
+    `;
+
+    const result = await pool.query(query, values);
+    res.json(result.rows.map(mapEventRow));
+  } catch (error) {
+    console.error('Error fetching events:', error);
+    res.status(500).json({ error: 'Failed to load events' });
   }
 });
 
-// API endpoint for events data
-app.get('/api/events', (req, res) => {
-  res.json(Object.values(events));
+app.get('/api/events/:eventId', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `
+        SELECT id, name, artists, event_date, event_time, venue, genre, ticket_price, description, image
+        FROM events
+        WHERE id = $1;
+      `,
+      [req.params.eventId]
+    );
+
+    if (result.rows.length === 0) {
+      res.status(404).json({ error: 'Event not found' });
+      return;
+    }
+
+    res.json(mapEventRow(result.rows[0]));
+  } catch (error) {
+    console.error('Error fetching event detail:', error);
+    res.status(500).json({ error: 'Failed to load event details' });
+  }
 });
 
-app.get('/api/events/:eventId', (req, res) => {
-  const event = events[req.params.eventId];
-  if (event) {
-    res.json(event);
-  } else {
-    res.status(404).json({ error: 'Event not found' });
+// Event detail page
+app.get('/:eventId', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT id FROM events WHERE id = $1;', [req.params.eventId]);
+    if (result.rows.length > 0) {
+      res.sendFile(path.join(__dirname, 'public', 'event.html'));
+    } else {
+      res.status(404).sendFile(path.join(__dirname, 'public', '404.html'));
+    }
+  } catch (error) {
+    console.error('Error checking event route:', error);
+    res.status(500).sendFile(path.join(__dirname, 'public', '404.html'));
   }
 });
 
@@ -117,6 +159,17 @@ app.use((req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Server running at http://localhost:${PORT}`);
-});
+
+async function startServer() {
+  try {
+    await initializeDatabase();
+    app.listen(PORT, () => {
+      console.log(`Server running at http://localhost:${PORT}`);
+    });
+  } catch (error) {
+    console.error('Failed to initialize database:', error.message);
+    process.exit(1);
+  }
+}
+
+startServer();
